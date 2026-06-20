@@ -5,72 +5,120 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Page config
-st.set_page_config(page_title="Employee Attrition Analysis", layout="wide")
+# -------------------------------
+# PAGE SETTINGS
+# -------------------------------
+st.set_page_config(page_title="Real Estate ML Analysis", layout="wide")
 
-st.title("📊 Employee Attrition Analysis Dashboard")
+st.title("🏡 Real Estate Buyer Segmentation & Investment Analysis")
 
-# Load your FINAL analyzed Excel file
-# Make sure file is in same folder as app.py
-df = pd.read_excel("Final_Analyzed_Data.xlsx")
+# -------------------------------
+# LOAD DATA (NO UPLOAD)
+# -------------------------------
+@st.cache_data
+def load_data():
+    df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
+    return df
 
-# Show dataset
-st.subheader("Dataset Preview")
+df = load_data()
+
+# -------------------------------
+# DATA PREVIEW
+# -------------------------------
+st.subheader("📊 Dataset Preview")
 st.dataframe(df.head())
 
-# -------------------------------
-# ATTRITION COUNT
-# -------------------------------
-st.subheader("Attrition Count")
-
-fig1, ax1 = plt.subplots()
-sns.countplot(x='Attrition', data=df, ax=ax1)
-st.pyplot(fig1)
+st.write("Shape of dataset:", df.shape)
 
 # -------------------------------
-# ATTRITION BY DEPARTMENT
+# CHECK NUMERIC COLUMNS
 # -------------------------------
-st.subheader("Attrition by Department")
-
-fig2, ax2 = plt.subplots()
-sns.countplot(x='Department', hue='Attrition', data=df, ax=ax2)
-plt.xticks(rotation=30)
-st.pyplot(fig2)
+numeric_df = df.select_dtypes(include=['int64','float64'])
 
 # -------------------------------
-# AGE DISTRIBUTION
+# 1. AGE DISTRIBUTION
 # -------------------------------
-st.subheader("Age Distribution")
-
-fig3, ax3 = plt.subplots()
-sns.histplot(df['Age'], bins=20, kde=True, ax=ax3)
-st.pyplot(fig3)
-
-# -------------------------------
-# SALARY VS ATTRITION
-# -------------------------------
-st.subheader("Monthly Income vs Attrition")
-
-fig4, ax4 = plt.subplots()
-sns.boxplot(x='Attrition', y='MonthlyIncome', data=df, ax=ax4)
-st.pyplot(fig4)
+if 'Age' in df.columns:
+    st.subheader("📌 Age Distribution")
+    fig, ax = plt.subplots()
+    sns.histplot(df['Age'], bins=20, kde=True, ax=ax)
+    st.pyplot(fig)
 
 # -------------------------------
-# JOB SATISFACTION
+# 2. INCOME DISTRIBUTION
 # -------------------------------
-st.subheader("Job Satisfaction Distribution")
-
-fig5, ax5 = plt.subplots()
-sns.countplot(x='JobSatisfaction', data=df, ax=ax5)
-st.pyplot(fig5)
+if 'Income' in df.columns:
+    st.subheader("💰 Income Distribution")
+    fig, ax = plt.subplots()
+    sns.histplot(df['Income'], bins=20, kde=True, ax=ax)
+    st.pyplot(fig)
 
 # -------------------------------
-# CORRELATION HEATMAP
+# 3. PROPERTY TYPE COUNT
 # -------------------------------
-st.subheader("Correlation Heatmap")
+for col in ['Property_Type', 'PropertyType']:
+    if col in df.columns:
+        st.subheader("🏢 Property Type Distribution")
+        fig, ax = plt.subplots()
+        sns.countplot(x=col, data=df, ax=ax)
+        plt.xticks(rotation=30)
+        st.pyplot(fig)
+        break
 
-fig6, ax6 = plt.subplots(figsize=(10,6))
-sns.heatmap(df.corr(numeric_only=True), annot=True, cmap='coolwarm', ax=ax6)
-st.pyplot(fig6)
+# -------------------------------
+# 4. LOCATION ANALYSIS
+# -------------------------------
+for col in ['Location', 'Preferred_Location']:
+    if col in df.columns:
+        st.subheader("📍 Location Distribution")
+        fig, ax = plt.subplots()
+        sns.countplot(x=col, data=df, ax=ax)
+        plt.xticks(rotation=45)
+        st.pyplot(fig)
+        break
 
-st.success("✅ Dashboard Loaded Successfully!")
+# -------------------------------
+# 5. INCOME vs PROPERTY PRICE
+# -------------------------------
+if 'Income' in df.columns and 'Property_Price' in df.columns:
+    st.subheader("📈 Income vs Property Price")
+    fig, ax = plt.subplots()
+    sns.scatterplot(x='Income', y='Property_Price', data=df, ax=ax)
+    st.pyplot(fig)
+
+# -------------------------------
+# 6. CLUSTER DISTRIBUTION (IMPORTANT)
+# -------------------------------
+for col in ['Cluster', 'cluster', 'Segment']:
+    if col in df.columns:
+        st.subheader("🧠 Buyer Segmentation (Clusters)")
+        fig, ax = plt.subplots()
+        sns.countplot(x=col, data=df, ax=ax)
+        st.pyplot(fig)
+        break
+
+# -------------------------------
+# 7. CORRELATION HEATMAP
+# -------------------------------
+if not numeric_df.empty:
+    st.subheader("🔥 Correlation Heatmap")
+    fig, ax = plt.subplots(figsize=(10,6))
+    sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm', ax=ax)
+    st.pyplot(fig)
+
+# -------------------------------
+# 8. BOXPLOT (INCOME VS CLUSTER)
+# -------------------------------
+if 'Income' in df.columns:
+    for col in ['Cluster', 'cluster', 'Segment']:
+        if col in df.columns:
+            st.subheader("📊 Income vs Cluster")
+            fig, ax = plt.subplots()
+            sns.boxplot(x=col, y='Income', data=df, ax=ax)
+            st.pyplot(fig)
+            break
+
+# -------------------------------
+# SUCCESS MESSAGE
+# -------------------------------
+st.success("✅ Dashboard Loaded Successfully Without Errors!")
