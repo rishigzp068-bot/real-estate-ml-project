@@ -1,98 +1,106 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-st.set_page_config(page_title="Attrition Analysis Dashboard", layout="wide")
+# -------------------------------
+# PAGE CONFIG
+# -------------------------------
+st.set_page_config(page_title="Real Estate ML Dashboard", layout="wide")
 
-st.title("📊 Employee Attrition Analysis Dashboard")
+st.title("🏡 Real Estate Buyer Segmentation Dashboard")
 
-# Upload file
-uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
+# -------------------------------
+# LOAD DATA
+# -------------------------------
+@st.cache_data
+def load_data():
+    df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
+    return df
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
+df = load_data()
 
-    st.subheader("📌 Dataset Preview")
-    st.write(df.head())
+# -------------------------------
+# SHOW DATA
+# -------------------------------
+st.subheader("📊 Dataset Preview")
+st.dataframe(df.head())
 
-    st.subheader("📌 Column Names in Dataset")
-    st.write(list(df.columns))
+st.write("Dataset Shape:", df.shape)
 
-    # -------------------------------
-    # 🔧 AUTO FIX COLUMN NAMES
-    # -------------------------------
-    df.columns = df.columns.str.strip().str.lower()
+# Show columns (IMPORTANT for debugging)
+st.write("Columns:", df.columns)
 
-    # Try to map correct columns automatically
-    AREA_COL = None
-    PRICE_COL = None
-    LOCATION_COL = None
+# -------------------------------
+# AGE DISTRIBUTION
+# -------------------------------
+if 'Age' in df.columns:
+    st.subheader("📌 Age Distribution")
+    fig, ax = plt.subplots()
+    sns.histplot(df['Age'], bins=20, kde=True, ax=ax)
+    st.pyplot(fig)
 
-    for col in df.columns:
-        if "area" in col:
-            AREA_COL = col
-        elif "price" in col or "salary" in col:
-            PRICE_COL = col
-        elif "location" in col or "city" in col:
-            LOCATION_COL = col
+# -------------------------------
+# INCOME DISTRIBUTION
+# -------------------------------
+if 'Income' in df.columns:
+    st.subheader("💰 Income Distribution")
+    fig, ax = plt.subplots()
+    sns.histplot(df['Income'], bins=20, kde=True, ax=ax)
+    st.pyplot(fig)
 
-    # -------------------------------
-    # ❗ ERROR HANDLING
-    # -------------------------------
-    if AREA_COL is None or PRICE_COL is None or LOCATION_COL is None:
-        st.error(f"❌ Missing required columns.\n\nDetected:\nArea: {AREA_COL}\nPrice: {PRICE_COL}\nLocation: {LOCATION_COL}")
-        st.info("👉 Please make sure your dataset has columns like: area, price, location OR similar names.")
-        st.stop()
+# -------------------------------
+# PROPERTY TYPE
+# -------------------------------
+if 'Property_Type' in df.columns:
+    st.subheader("🏢 Property Type")
+    fig, ax = plt.subplots()
+    sns.countplot(x='Property_Type', data=df, ax=ax)
+    plt.xticks(rotation=30)
+    st.pyplot(fig)
 
-    # -------------------------------
-    # 📊 CLEANING
-    # -------------------------------
-    df = df.dropna()
+# -------------------------------
+# LOCATION
+# -------------------------------
+if 'Location' in df.columns:
+    st.subheader("📍 Location Distribution")
+    fig, ax = plt.subplots()
+    sns.countplot(x='Location', data=df, ax=ax)
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
 
-    # -------------------------------
-    # 📈 GRAPH 1: Price Distribution
-    # -------------------------------
-    st.subheader("📈 Price Distribution")
+# -------------------------------
+# CLUSTER (VERY IMPORTANT)
+# -------------------------------
+if 'Cluster' in df.columns:
+    st.subheader("🧠 Buyer Segments")
+    fig, ax = plt.subplots()
+    sns.countplot(x='Cluster', data=df, ax=ax)
+    st.pyplot(fig)
 
-    fig1, ax1 = plt.subplots()
-    sns.histplot(df[PRICE_COL], kde=True, ax=ax1)
-    st.pyplot(fig1)
+# -------------------------------
+# SCATTER (INCOME VS PRICE)
+# -------------------------------
+if 'Income' in df.columns and 'Property_Price' in df.columns:
+    st.subheader("📈 Income vs Property Price")
+    fig, ax = plt.subplots()
+    sns.scatterplot(x='Income', y='Property_Price', data=df, ax=ax)
+    st.pyplot(fig)
 
-    # -------------------------------
-    # 📊 GRAPH 2: Area vs Price
-    # -------------------------------
-    st.subheader("📊 Area vs Price")
+# -------------------------------
+# HEATMAP
+# -------------------------------
+numeric_df = df.select_dtypes(include=['int64','float64'])
 
-    fig2, ax2 = plt.subplots()
-    sns.scatterplot(x=df[AREA_COL], y=df[PRICE_COL], ax=ax2)
-    st.pyplot(fig2)
-
-    # -------------------------------
-    # 📍 GRAPH 3: Location Count
-    # -------------------------------
-    st.subheader("📍 Properties by Location")
-
-    fig3, ax3 = plt.subplots()
-    df[LOCATION_COL].value_counts().head(10).plot(kind='bar', ax=ax3)
-    st.pyplot(fig3)
-
-    # -------------------------------
-    # 📊 CORRELATION HEATMAP
-    # -------------------------------
+if not numeric_df.empty:
     st.subheader("🔥 Correlation Heatmap")
+    fig, ax = plt.subplots(figsize=(10,6))
+    sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm', ax=ax)
+    st.pyplot(fig)
 
-    fig4, ax4 = plt.subplots()
-    sns.heatmap(df.select_dtypes(include=['number']).corr(), annot=True, cmap="coolwarm", ax=ax4)
-    st.pyplot(fig4)
-
-    # -------------------------------
-    # 📥 DOWNLOAD CLEANED DATA
-    # -------------------------------
-    st.subheader("📥 Download Cleaned Data")
-
-    csv = df.to_csv(index=False).encode('utf-8')
-    st.download_button("Download CSV", csv, "cleaned_data.csv", "text/csv")
-
-else:
-    st.warning("⚠️ Please upload a dataset to proceed.")
+# -------------------------------
+# SUCCESS
+# -------------------------------
+st.success("✅ App Running Successfully!")
