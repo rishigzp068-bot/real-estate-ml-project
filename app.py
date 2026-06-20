@@ -1,132 +1,121 @@
 # =========================================
-# 1. IMPORT LIBRARIES
+# IMPORT LIBRARIES
 # =========================================
+import streamlit as st
 import pandas as pd
-import numpy as np
-
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.cluster import KMeans
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error
-
-import warnings
-warnings.filterwarnings("ignore")
+import plotly.express as px
+import joblib
+import os
 
 # =========================================
-# 2. LOAD DATA
+# PAGE CONFIG
 # =========================================
-clients = pd.read_excel("clients.xlsx")
-properties = pd.read_excel("properties.xlsx")
+st.set_page_config(page_title="Real Estate Dashboard", layout="wide")
 
-print("Clients Shape:", clients.shape)
-print("Properties Shape:", properties.shape)
+st.title("🏠 Real Estate Market Intelligence Dashboard")
 
 # =========================================
-# 3. DATA CLEANING
+# FILE UPLOAD
 # =========================================
-# Standardize column names
-clients.columns = clients.columns.str.strip().str.replace(" ", "_")
-properties.columns = properties.columns.str.strip().str.replace(" ", "_")
+uploaded_file = st.file_uploader("📂 Upload Final Excel Dataset", type=["xlsx"])
 
-# Remove duplicates
-clients = clients.drop_duplicates()
-properties = properties.drop_duplicates()
+if uploaded_file is not None:
 
-# Fill missing values
-for col in clients.select_dtypes(include=np.number):
-    clients[col].fillna(clients[col].median(), inplace=True)
+    try:
+        df = pd.read_excel(uploaded_file)
 
-for col in clients.select_dtypes(include='object'):
-    clients[col].fillna(clients[col].mode()[0], inplace=True)
+        st.success("✅ File loaded successfully!")
 
-for col in properties.select_dtypes(include=np.number):
-    properties[col].fillna(properties[col].median(), inplace=True)
+        # =========================================
+        # SHOW DATA
+        # =========================================
+        st.subheader("📊 Dataset Preview")
+        st.dataframe(df.head())
 
-for col in properties.select_dtypes(include='object'):
-    properties[col].fillna(properties[col].mode()[0], inplace=True)
+        st.write("Columns:", df.columns.tolist())
 
-print("Missing after cleaning:", clients.isnull().sum().sum())
+        # =========================================
+        # SIDEBAR FILTER
+        # =========================================
+        st.sidebar.header("🔍 Filters")
 
-# =========================================
-# 4. MERGE DATA (if common column exists)
-# =========================================
-# Adjust column name if needed
-common_cols = list(set(clients.columns) & set(properties.columns))
+        if 'Cluster' in df.columns:
+            selected_cluster = st.sidebar.multiselect(
+                "Select Cluster",
+                options=df['Cluster'].unique(),
+                default=df['Cluster'].unique()
+            )
+            df = df[df['Cluster'].isin(selected_cluster)]
 
-if len(common_cols) > 0:
-    df = pd.merge(clients, properties, on=common_cols[0], how='inner')
+        # =========================================
+        # KPI METRICS
+        # =========================================
+        st.markdown("### 📌 Key Metrics")
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric("Total Records", len(df))
+
+        if 'Income' in df.columns:
+            col2.metric("Avg Income", round(df['Income'].mean(), 2))
+
+        if 'Price' in df.columns:
+            col3.metric("Avg Price", round(df['Price'].mean(), 2))
+
+        st.markdown("---")
+
+        # =========================================
+        # CHARTS
+        # =========================================
+        col1, col2 = st.columns(2)
+
+        # Cluster Chart
+        with col1:
+            if 'Cluster' in df.columns:
+                fig = px.histogram(df, x='Cluster', title="Cluster Distribution")
+                st.plotly_chart(fig, use_container_width=True)
+
+        # Buyer Type Chart
+        with col2:
+            if 'Buyer_Type' in df.columns:
+                fig = px.pie(df, names='Buyer_Type', title="Buyer Type Distribution")
+                st.plotly_chart(fig, use_container_width=True)
+
+        # Scatter Plot
+        if 'Income' in df.columns and 'Price' in df.columns:
+            st.subheader("💰 Income vs Price")
+            fig = px.scatter(df, x='Income', y='Price', color='Cluster' if 'Cluster' in df.columns else None)
+            st.plotly_chart(fig, use_container_width=True)
+
+        # Box Plot
+        if 'Cluster' in df.columns and 'Income' in df.columns:
+            st.subheader("📦 Income Distribution by Cluster")
+            fig = px.box(df, x='Cluster', y='Income')
+            st.plotly_chart(fig, use_container_width=True)
+
+        # =========================================
+        # PRICE PREDICTION
+        # =========================================
+        st.sidebar.header("💰 Price Prediction")
+
+        model_path = "price_model.pkl"
+
+        if os.path.exists(model_path):
+
+            model = joblib.load(model_path)
+
+            income = st.sidebar.number_input("Enter Income", value=50000)
+            age = st.sidebar.number_input("Enter Age", value=30)
+
+            if st.sidebar.button("Predict Price"):
+                prediction = model.predict([[income, age]])
+                st.sidebar.success(f"Estimated Price: {round(prediction[0], 2)}")
+
+        else:
+            st.sidebar.warning("⚠️ Model file not found (price_model.pkl)")
+
+    except Exception as e:
+        st.error(f"❌ Error: {e}")
+
 else:
-    df = clients.copy()
-
-print("Final Dataset Shape:", df.shape)
-
-# =========================================
-# 5. FEATURE ENGINEERING
-# =========================================
-# Age Group
-if 'Age' in df.columns:
-    df['Age_Group'] = pd.cut(df['Age'],
-                            bins=[0,25,40,60,100],
-                            labels=['Young','Adult','Mid','Senior'])
-
-# Buyer Type
-if 'Income' in df.columns:
-    df['Buyer_Type'] = pd.cut(df['Income'],
-                             bins=[0,30000,70000,150000,1000000],
-                             labels=['Low','Medium','High','Premium'])
-
-# =========================================
-# 6. ENCODING
-# =========================================
-le = LabelEncoder()
-
-for col in df.select_dtypes(include='object'):
-    df[col] = le.fit_transform(df[col])
-
-# =========================================
-# 7. SCALING
-# =========================================
-scaler = StandardScaler()
-scaled_data = scaler.fit_transform(df)
-
-# =========================================
-# 8. K-MEANS CLUSTERING
-# =========================================
-kmeans = KMeans(n_clusters=4, random_state=42)
-df['Cluster'] = kmeans.fit_predict(scaled_data)
-
-print("Clustering Done!")
-
-# =========================================
-# 9. PRICE PREDICTION MODEL
-# =========================================
-if 'Price' in df.columns and 'Income' in df.columns and 'Age' in df.columns:
-    
-    X = df[['Income', 'Age']]
-    y = df['Price']
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42)
-
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-
-    pred = model.predict(X_test)
-
-    mae = mean_absolute_error(y_test, pred)
-    print("Model MAE:", mae)
-
-# =========================================
-# 10. FINAL DATASET SAVE
-# =========================================
-file_name = "Final_Analyzed_RealEstate_Data.xlsx"
-df.to_excel(file_name, index=False)
-
-print("✅ Final Excel Saved!")
-
-# =========================================
-# 11. DOWNLOAD (COLAB)
-# =========================================
-from google.colab import files
-files.download(file_name)
+    st.info("📂 Please upload your final Excel file to continue.")
