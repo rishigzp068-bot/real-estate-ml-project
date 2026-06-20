@@ -6,14 +6,14 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # -------------------------------
-# PAGE SETTINGS
+# PAGE CONFIG
 # -------------------------------
-st.set_page_config(page_title="Real Estate ML Analysis", layout="wide")
+st.set_page_config(page_title="Real Estate ML Dashboard", layout="wide")
 
-st.title("🏡 Real Estate Buyer Segmentation & Investment Analysis")
+st.title("🏡 Real Estate Buyer Segmentation Dashboard")
 
 # -------------------------------
-# LOAD DATA (NO UPLOAD)
+# LOAD DATA
 # -------------------------------
 @st.cache_data
 def load_data():
@@ -23,20 +23,18 @@ def load_data():
 df = load_data()
 
 # -------------------------------
-# DATA PREVIEW
+# SHOW DATA
 # -------------------------------
 st.subheader("📊 Dataset Preview")
 st.dataframe(df.head())
 
-st.write("Shape of dataset:", df.shape)
+st.write("Dataset Shape:", df.shape)
+
+# Show columns (IMPORTANT for debugging)
+st.write("Columns:", df.columns)
 
 # -------------------------------
-# CHECK NUMERIC COLUMNS
-# -------------------------------
-numeric_df = df.select_dtypes(include=['int64','float64'])
-
-# -------------------------------
-# 1. AGE DISTRIBUTION
+# AGE DISTRIBUTION
 # -------------------------------
 if 'Age' in df.columns:
     st.subheader("📌 Age Distribution")
@@ -45,7 +43,7 @@ if 'Age' in df.columns:
     st.pyplot(fig)
 
 # -------------------------------
-# 2. INCOME DISTRIBUTION
+# INCOME DISTRIBUTION
 # -------------------------------
 if 'Income' in df.columns:
     st.subheader("💰 Income Distribution")
@@ -54,31 +52,36 @@ if 'Income' in df.columns:
     st.pyplot(fig)
 
 # -------------------------------
-# 3. PROPERTY TYPE COUNT
+# PROPERTY TYPE
 # -------------------------------
-for col in ['Property_Type', 'PropertyType']:
-    if col in df.columns:
-        st.subheader("🏢 Property Type Distribution")
-        fig, ax = plt.subplots()
-        sns.countplot(x=col, data=df, ax=ax)
-        plt.xticks(rotation=30)
-        st.pyplot(fig)
-        break
+if 'Property_Type' in df.columns:
+    st.subheader("🏢 Property Type")
+    fig, ax = plt.subplots()
+    sns.countplot(x='Property_Type', data=df, ax=ax)
+    plt.xticks(rotation=30)
+    st.pyplot(fig)
 
 # -------------------------------
-# 4. LOCATION ANALYSIS
+# LOCATION
 # -------------------------------
-for col in ['Location', 'Preferred_Location']:
-    if col in df.columns:
-        st.subheader("📍 Location Distribution")
-        fig, ax = plt.subplots()
-        sns.countplot(x=col, data=df, ax=ax)
-        plt.xticks(rotation=45)
-        st.pyplot(fig)
-        break
+if 'Location' in df.columns:
+    st.subheader("📍 Location Distribution")
+    fig, ax = plt.subplots()
+    sns.countplot(x='Location', data=df, ax=ax)
+    plt.xticks(rotation=45)
+    st.pyplot(fig)
 
 # -------------------------------
-# 5. INCOME vs PROPERTY PRICE
+# CLUSTER (VERY IMPORTANT)
+# -------------------------------
+if 'Cluster' in df.columns:
+    st.subheader("🧠 Buyer Segments")
+    fig, ax = plt.subplots()
+    sns.countplot(x='Cluster', data=df, ax=ax)
+    st.pyplot(fig)
+
+# -------------------------------
+# SCATTER (INCOME VS PRICE)
 # -------------------------------
 if 'Income' in df.columns and 'Property_Price' in df.columns:
     st.subheader("📈 Income vs Property Price")
@@ -87,19 +90,10 @@ if 'Income' in df.columns and 'Property_Price' in df.columns:
     st.pyplot(fig)
 
 # -------------------------------
-# 6. CLUSTER DISTRIBUTION (IMPORTANT)
+# HEATMAP
 # -------------------------------
-for col in ['Cluster', 'cluster', 'Segment']:
-    if col in df.columns:
-        st.subheader("🧠 Buyer Segmentation (Clusters)")
-        fig, ax = plt.subplots()
-        sns.countplot(x=col, data=df, ax=ax)
-        st.pyplot(fig)
-        break
+numeric_df = df.select_dtypes(include=['int64','float64'])
 
-# -------------------------------
-# 7. CORRELATION HEATMAP
-# -------------------------------
 if not numeric_df.empty:
     st.subheader("🔥 Correlation Heatmap")
     fig, ax = plt.subplots(figsize=(10,6))
@@ -107,18 +101,6 @@ if not numeric_df.empty:
     st.pyplot(fig)
 
 # -------------------------------
-# 8. BOXPLOT (INCOME VS CLUSTER)
+# SUCCESS
 # -------------------------------
-if 'Income' in df.columns:
-    for col in ['Cluster', 'cluster', 'Segment']:
-        if col in df.columns:
-            st.subheader("📊 Income vs Cluster")
-            fig, ax = plt.subplots()
-            sns.boxplot(x=col, y='Income', data=df, ax=ax)
-            st.pyplot(fig)
-            break
-
-# -------------------------------
-# SUCCESS MESSAGE
-# -------------------------------
-st.success("✅ Dashboard Loaded Successfully Without Errors!")
+st.success("✅ App Running Successfully!")
