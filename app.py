@@ -1,78 +1,76 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
-import numpy as np
-
-# Safe Plotly import
-try:
-    import plotly.express as px
-    plotly_available = True
-except:
-    plotly_available = False
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 # Page config
-st.set_page_config(page_title="Real Estate Dashboard", layout="wide")
-st.title("🏡 Real Estate Analysis Dashboard")
+st.set_page_config(page_title="Employee Attrition Analysis", layout="wide")
 
-# ==============================
-# LOAD DATA (SAFE)
-# ==============================
-@st.cache_data
-def load_data():
-    try:
-        df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx", engine="openpyxl")
-        return df
-    except Exception as e:
-        st.error(f"Error loading file: {e}")
-        return None
+st.title("📊 Employee Attrition Analysis Dashboard")
 
-df = load_data()
+# Load your FINAL analyzed Excel file
+# Make sure file is in same folder as app.py
+df = pd.read_excel("Final_Analyzed_Data.xlsx")
 
-if df is None:
-    st.stop()
-
-# ==============================
-# DATA PREVIEW
-# ==============================
+# Show dataset
 st.subheader("Dataset Preview")
-st.write(df.head())
+st.dataframe(df.head())
 
-# ==============================
-# CLEANING
-# ==============================
-df = df.drop_duplicates()
+# -------------------------------
+# ATTRITION COUNT
+# -------------------------------
+st.subheader("Attrition Count")
 
-# ==============================
-# KPI
-# ==============================
-st.subheader("Key Metrics")
+fig1, ax1 = plt.subplots()
+sns.countplot(x='Attrition', data=df, ax=ax1)
+st.pyplot(fig1)
 
-col1, col2 = st.columns(2)
-col1.metric("Total Rows", df.shape[0])
-col2.metric("Total Columns", df.shape[1])
+# -------------------------------
+# ATTRITION BY DEPARTMENT
+# -------------------------------
+st.subheader("Attrition by Department")
 
-# ==============================
-# VISUALIZATION (SAFE)
-# ==============================
-st.subheader("Visuals")
+fig2, ax2 = plt.subplots()
+sns.countplot(x='Department', hue='Attrition', data=df, ax=ax2)
+plt.xticks(rotation=30)
+st.pyplot(fig2)
 
-if plotly_available:
-    numeric_cols = df.select_dtypes(include=np.number).columns
+# -------------------------------
+# AGE DISTRIBUTION
+# -------------------------------
+st.subheader("Age Distribution")
 
-    if len(numeric_cols) > 0:
-        fig = px.histogram(df, x=numeric_cols[0], title="Numeric Distribution")
-        st.plotly_chart(fig, use_container_width=True)
+fig3, ax3 = plt.subplots()
+sns.histplot(df['Age'], bins=20, kde=True, ax=ax3)
+st.pyplot(fig3)
 
-else:
-    st.warning("Plotly not installed")
+# -------------------------------
+# SALARY VS ATTRITION
+# -------------------------------
+st.subheader("Monthly Income vs Attrition")
 
-# ==============================
-# DOWNLOAD
-# ==============================
-csv = df.to_csv(index=False).encode('utf-8')
+fig4, ax4 = plt.subplots()
+sns.boxplot(x='Attrition', y='MonthlyIncome', data=df, ax=ax4)
+st.pyplot(fig4)
 
-st.download_button(
-    label="Download Data",
-    data=csv,
-    file_name="data.csv",
-    mime="text/csv"
-)
+# -------------------------------
+# JOB SATISFACTION
+# -------------------------------
+st.subheader("Job Satisfaction Distribution")
+
+fig5, ax5 = plt.subplots()
+sns.countplot(x='JobSatisfaction', data=df, ax=ax5)
+st.pyplot(fig5)
+
+# -------------------------------
+# CORRELATION HEATMAP
+# -------------------------------
+st.subheader("Correlation Heatmap")
+
+fig6, ax6 = plt.subplots(figsize=(10,6))
+sns.heatmap(df.corr(numeric_only=True), annot=True, cmap='coolwarm', ax=ax6)
+st.pyplot(fig6)
+
+st.success("✅ Dashboard Loaded Successfully!")
