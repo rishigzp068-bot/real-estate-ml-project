@@ -108,8 +108,5 @@ st.set_page_config(page_title="Real Estate ML Dashboard", layout="wide")
 
 st.markdown("Machine Learning based analysis of real estate data")
 pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Total Records", len(df))
-col2.metric("Average Price", f"{df['price'].mean():,.0f}")
-col3.metric("Max Price", f"{df['price'].max():,.0f}")
+location = st.selectbox("Select Location", df['location'].unique())
+filtered_df = df[df['location'] == location]
