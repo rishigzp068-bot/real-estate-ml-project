@@ -2,125 +2,97 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import plotly.express as px
 
-# -------------------------------
-# PAGE CONFIG
-# -------------------------------
-st.set_page_config(page_title="Real Estate Dashboard", layout="wide")
+st.set_page_config(page_title="Attrition Analysis Dashboard", layout="wide")
 
-st.title("🏠 Real Estate Price Prediction Dashboard")
-st.markdown("Real Estate Data Analysis using Machine Learning")
+st.title("📊 Employee Attrition Analysis Dashboard")
 
-# -------------------------------
-# LOAD DATA
-# -------------------------------
-df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
+# Upload file
+uploaded_file = st.file_uploader("Upload your dataset (CSV)", type=["csv"])
 
-# -------------------------------
-# CLEAN COLUMN NAMES
-# -------------------------------
-df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
 
-# -------------------------------
-# SHOW DATA
-# -------------------------------
-st.subheader("📊 Dataset Preview")
-st.dataframe(df.head())
+    st.subheader("📌 Dataset Preview")
+    st.write(df.head())
 
-st.subheader("📋 Available Columns")
-st.write(df.columns)
+    st.subheader("📌 Column Names in Dataset")
+    st.write(list(df.columns))
 
-# =========================================================
-# 🔴 SET YOUR ACTUAL COLUMN NAMES HERE (VERY IMPORTANT)
-# =========================================================
-AREA_COL = "area"        # 👉 CHANGE if needed
-PRICE_COL = "price"      # 👉 CHANGE if needed
-LOCATION_COL = "location"  # 👉 CHANGE if needed
+    # -------------------------------
+    # 🔧 AUTO FIX COLUMN NAMES
+    # -------------------------------
+    df.columns = df.columns.str.strip().str.lower()
 
-# =========================================================
-# VALIDATE COLUMNS
-# =========================================================
-missing_cols = [col for col in [AREA_COL, PRICE_COL, LOCATION_COL] if col not in df.columns]
+    # Try to map correct columns automatically
+    AREA_COL = None
+    PRICE_COL = None
+    LOCATION_COL = None
 
-if missing_cols:
-    st.error(f"❌ Missing columns in dataset: {missing_cols}")
-    st.warning("👉 Please update AREA_COL, PRICE_COL, LOCATION_COL in app.py")
-    st.stop()
+    for col in df.columns:
+        if "area" in col:
+            AREA_COL = col
+        elif "price" in col or "salary" in col:
+            PRICE_COL = col
+        elif "location" in col or "city" in col:
+            LOCATION_COL = col
 
-# =========================================================
-# CLEAN DATA
-# =========================================================
-df[AREA_COL] = pd.to_numeric(df[AREA_COL], errors='coerce')
-df[PRICE_COL] = pd.to_numeric(df[PRICE_COL], errors='coerce')
+    # -------------------------------
+    # ❗ ERROR HANDLING
+    # -------------------------------
+    if AREA_COL is None or PRICE_COL is None or LOCATION_COL is None:
+        st.error(f"❌ Missing required columns.\n\nDetected:\nArea: {AREA_COL}\nPrice: {PRICE_COL}\nLocation: {LOCATION_COL}")
+        st.info("👉 Please make sure your dataset has columns like: area, price, location OR similar names.")
+        st.stop()
 
-df = df.dropna(subset=[AREA_COL, PRICE_COL])
+    # -------------------------------
+    # 📊 CLEANING
+    # -------------------------------
+    df = df.dropna()
 
-# -------------------------------
-# 📈 KPIs
-# -------------------------------
-st.subheader("📈 Key Metrics")
+    # -------------------------------
+    # 📈 GRAPH 1: Price Distribution
+    # -------------------------------
+    st.subheader("📈 Price Distribution")
 
-col1, col2, col3 = st.columns(3)
+    fig1, ax1 = plt.subplots()
+    sns.histplot(df[PRICE_COL], kde=True, ax=ax1)
+    st.pyplot(fig1)
 
-col1.metric("Average Price", f"{df[PRICE_COL].mean():,.0f}")
-col2.metric("Max Price", f"{df[PRICE_COL].max():,.0f}")
-col3.metric("Min Price", f"{df[PRICE_COL].min():,.0f}")
+    # -------------------------------
+    # 📊 GRAPH 2: Area vs Price
+    # -------------------------------
+    st.subheader("📊 Area vs Price")
 
-# -------------------------------
-# 🔥 CORRELATION HEATMAP
-# -------------------------------
-st.subheader("🔥 Correlation Heatmap")
+    fig2, ax2 = plt.subplots()
+    sns.scatterplot(x=df[AREA_COL], y=df[PRICE_COL], ax=ax2)
+    st.pyplot(fig2)
 
-numeric_df = df.select_dtypes(include=['number'])
+    # -------------------------------
+    # 📍 GRAPH 3: Location Count
+    # -------------------------------
+    st.subheader("📍 Properties by Location")
 
-fig, ax = plt.subplots(figsize=(10, 6))
-sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm', ax=ax)
-st.pyplot(fig)
+    fig3, ax3 = plt.subplots()
+    df[LOCATION_COL].value_counts().head(10).plot(kind='bar', ax=ax3)
+    st.pyplot(fig3)
 
-# -------------------------------
-# 📍 AREA vs PRICE
-# -------------------------------
-st.subheader("📍 Area vs Price Scatter Plot")
+    # -------------------------------
+    # 📊 CORRELATION HEATMAP
+    # -------------------------------
+    st.subheader("🔥 Correlation Heatmap")
 
-fig1 = px.scatter(
-    df,
-    x=AREA_COL,
-    y=PRICE_COL,
-    color=LOCATION_COL,
-    title="Area vs Price"
-)
+    fig4, ax4 = plt.subplots()
+    sns.heatmap(df.select_dtypes(include=['number']).corr(), annot=True, cmap="coolwarm", ax=ax4)
+    st.pyplot(fig4)
 
-st.plotly_chart(fig1, use_container_width=True)
+    # -------------------------------
+    # 📥 DOWNLOAD CLEANED DATA
+    # -------------------------------
+    st.subheader("📥 Download Cleaned Data")
 
-# -------------------------------
-# 📊 PRICE DISTRIBUTION
-# -------------------------------
-st.subheader("📊 Price Distribution")
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button("Download CSV", csv, "cleaned_data.csv", "text/csv")
 
-fig2, ax = plt.subplots()
-sns.histplot(df[PRICE_COL], kde=True, ax=ax)
-st.pyplot(fig2)
-
-# -------------------------------
-# 📍 LOCATION COUNT
-# -------------------------------
-st.subheader("📍 Properties by Location")
-
-loc_df = df[LOCATION_COL].value_counts().reset_index()
-loc_df.columns = ["Location", "Count"]
-
-fig3 = px.bar(
-    loc_df,
-    x="Location",
-    y="Count",
-    title="Properties per Location"
-)
-
-st.plotly_chart(fig3, use_container_width=True)
-
-# -------------------------------
-# FOOTER
-# -------------------------------
-st.markdown("---")
-st.markdown("✅ Developed using Streamlit | ML Project")
+else:
+    st.warning("⚠️ Please upload a dataset to proceed.")
