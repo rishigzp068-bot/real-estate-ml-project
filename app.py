@@ -108,5 +108,7 @@ st.set_page_config(page_title="Real Estate ML Dashboard", layout="wide")
 
 st.markdown("Machine Learning based analysis of real estate data")
 pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
-location = st.selectbox("Select Location", df['location'].unique())
-filtered_df = df[df['location'] == location]
+import plotly.express as px
+
+fig = px.scatter(df, x="area", y="price", color="location", title="Area vs Price")
+st.plotly_chart(fig)
