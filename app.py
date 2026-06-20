@@ -1,26 +1,26 @@
-# app.py
-
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 
 # -------------------------------
 # PAGE CONFIG
 # -------------------------------
-st.set_page_config(page_title="Real Estate ML Dashboard", layout="wide")
+st.set_page_config(page_title="Real Estate Dashboard", layout="wide")
 
-st.title("🏡 Real Estate Buyer Segmentation Dashboard")
+st.title("🏠 Real Estate Price Prediction Dashboard")
+st.markdown("Analysis of Real Estate Dataset using Machine Learning")
 
 # -------------------------------
-# LOAD DATA
+# LOAD DATA (NO UPLOAD BUTTON)
 # -------------------------------
-@st.cache_data
-def load_data():
-    df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
-    return df
+df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
 
-df = load_data()
+# -------------------------------
+# CLEAN COLUMN NAMES (IMPORTANT)
+# -------------------------------
+df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
 
 # -------------------------------
 # SHOW DATA
@@ -28,87 +28,94 @@ df = load_data()
 st.subheader("📊 Dataset Preview")
 st.dataframe(df.head())
 
-st.write("Dataset Shape:", df.shape)
-
-# Show columns (IMPORTANT for debugging)
-st.write("Columns:", df.columns)
+st.write("Columns in dataset:", df.columns)
 
 # -------------------------------
-# AGE DISTRIBUTION
+# BASIC KPIs
 # -------------------------------
-if 'Age' in df.columns:
-    st.subheader("📌 Age Distribution")
-    fig, ax = plt.subplots()
-    sns.histplot(df['Age'], bins=20, kde=True, ax=ax)
-    st.pyplot(fig)
+st.subheader("📈 Key Metrics")
+
+col1, col2, col3 = st.columns(3)
+
+if "price" in df.columns:
+    col1.metric("Average Price", f"{df['price'].mean():,.0f}")
+    col2.metric("Max Price", f"{df['price'].max():,.0f}")
+    col3.metric("Min Price", f"{df['price'].min():,.0f}")
+else:
+    st.warning("Column 'price' not found in dataset")
 
 # -------------------------------
-# INCOME DISTRIBUTION
+# CORRELATION HEATMAP
 # -------------------------------
-if 'Income' in df.columns:
-    st.subheader("💰 Income Distribution")
-    fig, ax = plt.subplots()
-    sns.histplot(df['Income'], bins=20, kde=True, ax=ax)
-    st.pyplot(fig)
+st.subheader("🔥 Correlation Heatmap")
 
-# -------------------------------
-# PROPERTY TYPE
-# -------------------------------
-if 'Property_Type' in df.columns:
-    st.subheader("🏢 Property Type")
-    fig, ax = plt.subplots()
-    sns.countplot(x='Property_Type', data=df, ax=ax)
-    plt.xticks(rotation=30)
-    st.pyplot(fig)
-
-# -------------------------------
-# LOCATION
-# -------------------------------
-if 'Location' in df.columns:
-    st.subheader("📍 Location Distribution")
-    fig, ax = plt.subplots()
-    sns.countplot(x='Location', data=df, ax=ax)
-    plt.xticks(rotation=45)
-    st.pyplot(fig)
-
-# -------------------------------
-# CLUSTER (VERY IMPORTANT)
-# -------------------------------
-if 'Cluster' in df.columns:
-    st.subheader("🧠 Buyer Segments")
-    fig, ax = plt.subplots()
-    sns.countplot(x='Cluster', data=df, ax=ax)
-    st.pyplot(fig)
-
-# -------------------------------
-# SCATTER (INCOME VS PRICE)
-# -------------------------------
-if 'Income' in df.columns and 'Property_Price' in df.columns:
-    st.subheader("📈 Income vs Property Price")
-    fig, ax = plt.subplots()
-    sns.scatterplot(x='Income', y='Property_Price', data=df, ax=ax)
-    st.pyplot(fig)
-
-# -------------------------------
-# HEATMAP
-# -------------------------------
-numeric_df = df.select_dtypes(include=['int64','float64'])
+numeric_df = df.select_dtypes(include=['number'])
 
 if not numeric_df.empty:
-    st.subheader("🔥 Correlation Heatmap")
-    fig, ax = plt.subplots(figsize=(10,6))
+    fig, ax = plt.subplots(figsize=(10, 6))
     sns.heatmap(numeric_df.corr(), annot=True, cmap='coolwarm', ax=ax)
     st.pyplot(fig)
+else:
+    st.warning("No numeric columns found for heatmap")
 
 # -------------------------------
-# SUCCESS
+# AREA vs PRICE (PLOTLY SAFE)
 # -------------------------------
-st.success("✅ App Running Successfully!")
-st.set_page_config(page_title="Real Estate ML Dashboard", layout="wide")
+st.subheader("📍 Area vs Price Scatter Plot")
 
-st.markdown("Machine Learning based analysis of real estate data")
-pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
-import plotly.express as px
+# Convert safely
+if "area" in df.columns:
+    df["area"] = pd.to_numeric(df["area"], errors="coerce")
 
-fig = px.scatter(df, x="area", y="price", color="location", title="Area vs Price")
-st.plotly_chart(fig)
+if "price" in df.columns:
+    df["price"] = pd.to_numeric(df["price"], errors="coerce")
+
+# Drop missing
+plot_df = df.dropna(subset=["area", "price"]) if all(col in df.columns for col in ["area", "price"]) else pd.DataFrame()
+
+if not plot_df.empty:
+    fig = px.scatter(
+        plot_df,
+        x="area",
+        y="price",
+        color="location" if "location" in plot_df.columns else None,
+        title="Area vs Price"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("Required columns ('area', 'price') not found or empty")
+
+# -------------------------------
+# PRICE DISTRIBUTION
+# -------------------------------
+st.subheader("📊 Price Distribution")
+
+if "price" in df.columns:
+    fig, ax = plt.subplots()
+    sns.histplot(df["price"], kde=True, ax=ax)
+    st.pyplot(fig)
+else:
+    st.warning("Column 'price' not found")
+
+# -------------------------------
+# LOCATION COUNT
+# -------------------------------
+st.subheader("📍 Properties by Location")
+
+if "location" in df.columns:
+    fig = px.bar(
+        df["location"].value_counts().reset_index(),
+        x="location",
+        y="count",
+        labels={"location": "Location", "count": "Number of Properties"},
+        title="Properties per Location"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("Column 'location' not found")
+
+# -------------------------------
+# FOOTER
+# -------------------------------
+st.markdown("---")
+st.markdown("✅ Developed using Streamlit | Machine Learning Project")
