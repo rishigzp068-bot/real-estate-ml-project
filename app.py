@@ -1,121 +1,94 @@
-# =========================================
-# IMPORT LIBRARIES
-# =========================================
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import joblib
-import os
 
-# =========================================
-# PAGE CONFIG
-# =========================================
 st.set_page_config(page_title="Real Estate Dashboard", layout="wide")
 
-st.title("🏠 Real Estate Market Intelligence Dashboard")
+st.title("🏠 Real Estate Dashboard")
 
-# =========================================
+# =========================
 # FILE UPLOAD
-# =========================================
-uploaded_file = st.file_uploader("📂 Upload Final Excel Dataset", type=["xlsx"])
+# =========================
+file = st.file_uploader("Upload Excel File", type=["xlsx"])
 
-if uploaded_file is not None:
-
+if file is not None:
     try:
-        df = pd.read_excel(uploaded_file)
+        df = pd.read_excel(file)
 
-        st.success("✅ File loaded successfully!")
+        st.success("✅ File Loaded")
 
-        # =========================================
-        # SHOW DATA
-        # =========================================
-        st.subheader("📊 Dataset Preview")
+        # Show data
+        st.write("### Preview")
         st.dataframe(df.head())
 
-        st.write("Columns:", df.columns.tolist())
+        # =========================
+        # BASIC INFO
+        # =========================
+        st.write("### Columns")
+        st.write(df.columns.tolist())
 
-        # =========================================
-        # SIDEBAR FILTER
-        # =========================================
-        st.sidebar.header("🔍 Filters")
+        # =========================
+        # SAFE COLUMN DETECTION
+        # =========================
+        income_col = None
+        price_col = None
+        cluster_col = None
+        buyer_col = None
+        age_col = None
 
-        if 'Cluster' in df.columns:
-            selected_cluster = st.sidebar.multiselect(
-                "Select Cluster",
-                options=df['Cluster'].unique(),
-                default=df['Cluster'].unique()
-            )
-            df = df[df['Cluster'].isin(selected_cluster)]
+        for col in df.columns:
+            if "income" in col.lower():
+                income_col = col
+            if "price" in col.lower():
+                price_col = col
+            if "cluster" in col.lower():
+                cluster_col = col
+            if "buyer" in col.lower():
+                buyer_col = col
+            if "age" in col.lower():
+                age_col = col
 
-        # =========================================
-        # KPI METRICS
-        # =========================================
-        st.markdown("### 📌 Key Metrics")
-
+        # =========================
+        # METRICS
+        # =========================
+        st.write("### 📊 Metrics")
         col1, col2, col3 = st.columns(3)
 
-        col1.metric("Total Records", len(df))
+        col1.metric("Total Rows", len(df))
 
-        if 'Income' in df.columns:
-            col2.metric("Avg Income", round(df['Income'].mean(), 2))
+        if income_col:
+            col2.metric("Avg Income", round(df[income_col].mean(), 2))
 
-        if 'Price' in df.columns:
-            col3.metric("Avg Price", round(df['Price'].mean(), 2))
+        if price_col:
+            col3.metric("Avg Price", round(df[price_col].mean(), 2))
 
-        st.markdown("---")
-
-        # =========================================
+        # =========================
         # CHARTS
-        # =========================================
-        col1, col2 = st.columns(2)
+        # =========================
+        st.write("### 📈 Charts")
 
         # Cluster Chart
-        with col1:
-            if 'Cluster' in df.columns:
-                fig = px.histogram(df, x='Cluster', title="Cluster Distribution")
-                st.plotly_chart(fig, use_container_width=True)
+        if cluster_col:
+            fig = px.histogram(df, x=cluster_col, title="Cluster Distribution")
+            st.plotly_chart(fig)
 
-        # Buyer Type Chart
-        with col2:
-            if 'Buyer_Type' in df.columns:
-                fig = px.pie(df, names='Buyer_Type', title="Buyer Type Distribution")
-                st.plotly_chart(fig, use_container_width=True)
+        # Buyer Type
+        if buyer_col:
+            fig = px.pie(df, names=buyer_col, title="Buyer Type")
+            st.plotly_chart(fig)
 
-        # Scatter Plot
-        if 'Income' in df.columns and 'Price' in df.columns:
-            st.subheader("💰 Income vs Price")
-            fig = px.scatter(df, x='Income', y='Price', color='Cluster' if 'Cluster' in df.columns else None)
-            st.plotly_chart(fig, use_container_width=True)
+        # Scatter
+        if income_col and price_col:
+            fig = px.scatter(df, x=income_col, y=price_col, title="Income vs Price")
+            st.plotly_chart(fig)
 
-        # Box Plot
-        if 'Cluster' in df.columns and 'Income' in df.columns:
-            st.subheader("📦 Income Distribution by Cluster")
-            fig = px.box(df, x='Cluster', y='Income')
-            st.plotly_chart(fig, use_container_width=True)
-
-        # =========================================
-        # PRICE PREDICTION
-        # =========================================
-        st.sidebar.header("💰 Price Prediction")
-
-        model_path = "price_model.pkl"
-
-        if os.path.exists(model_path):
-
-            model = joblib.load(model_path)
-
-            income = st.sidebar.number_input("Enter Income", value=50000)
-            age = st.sidebar.number_input("Enter Age", value=30)
-
-            if st.sidebar.button("Predict Price"):
-                prediction = model.predict([[income, age]])
-                st.sidebar.success(f"Estimated Price: {round(prediction[0], 2)}")
-
-        else:
-            st.sidebar.warning("⚠️ Model file not found (price_model.pkl)")
+        # Box
+        if cluster_col and income_col:
+            fig = px.box(df, x=cluster_col, y=income_col, title="Income by Cluster")
+            st.plotly_chart(fig)
 
     except Exception as e:
-        st.error(f"❌ Error: {e}")
+        st.error(f"Error: {e}")
 
 else:
-    st.info("📂 Please upload your final Excel file to continue.")
+    st.info("Please upload your Excel file")
