@@ -1,74 +1,76 @@
-# -------------------------------
-# AUTO DETECT COLUMNS
-# -------------------------------
-st.subheader("🔍 Detecting Columns")
+# =========================================================
+# ✅ FINAL FIX SECTION (CLEAN + PROFESSIONAL + ERROR FREE)
+# =========================================================
 
-st.write("Available columns:", df.columns)
+st.subheader("📊 Data Columns Check")
+st.write(df.columns)
 
-# Try to guess columns
-area_col = None
-price_col = None
-location_col = None
+# ---------------------------------------------------------
+# 🔴 STEP 1: SET YOUR REAL COLUMN NAMES HERE (EDIT ONLY THIS)
+# ---------------------------------------------------------
+AREA_COL = "area"        # 👉 change if needed (example: "property_area")
+PRICE_COL = "price"      # 👉 change if needed (example: "sale_price")
+LOCATION_COL = "location"  # 👉 change if needed (example: "city")
 
-for col in df.columns:
-    if "area" in col:
-        area_col = col
-    if "price" in col:
-        price_col = col
-    if "location" in col or "city" in col:
-        location_col = col
+# ---------------------------------------------------------
+# 🔍 STEP 2: VALIDATE COLUMNS
+# ---------------------------------------------------------
+missing_cols = [col for col in [AREA_COL, PRICE_COL, LOCATION_COL] if col not in df.columns]
 
-st.write("Detected Area Column:", area_col)
-st.write("Detected Price Column:", price_col)
-st.write("Detected Location Column:", location_col)
+if missing_cols:
+    st.error(f"❌ Missing columns in dataset: {missing_cols}")
+    st.warning("👉 Please update AREA_COL, PRICE_COL, LOCATION_COL in code")
+    st.stop()
 
-# -------------------------------
-# AREA vs PRICE
-# -------------------------------
+# ---------------------------------------------------------
+# 🧹 STEP 3: CLEAN DATA
+# ---------------------------------------------------------
+df[AREA_COL] = pd.to_numeric(df[AREA_COL], errors='coerce')
+df[PRICE_COL] = pd.to_numeric(df[PRICE_COL], errors='coerce')
+
+df = df.dropna(subset=[AREA_COL, PRICE_COL])
+
+# ---------------------------------------------------------
+# 📍 STEP 4: AREA vs PRICE SCATTER
+# ---------------------------------------------------------
 st.subheader("📍 Area vs Price Scatter Plot")
 
-if area_col and price_col:
-    df[area_col] = pd.to_numeric(df[area_col], errors="coerce")
-    df[price_col] = pd.to_numeric(df[price_col], errors="coerce")
+fig1 = px.scatter(
+    df,
+    x=AREA_COL,
+    y=PRICE_COL,
+    color=LOCATION_COL,
+    title="Area vs Price"
+)
 
-    plot_df = df.dropna(subset=[area_col, price_col])
+st.plotly_chart(fig1, use_container_width=True)
 
-    if not plot_df.empty:
-        fig = px.scatter(
-            plot_df,
-            x=area_col,
-            y=price_col,
-            color=location_col if location_col else None,
-            title="Area vs Price"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("No valid data for plotting")
-else:
-    st.error("Could not detect area/price columns")
-
-# -------------------------------
-# PRICE DISTRIBUTION
-# -------------------------------
+# ---------------------------------------------------------
+# 📊 STEP 5: PRICE DISTRIBUTION
+# ---------------------------------------------------------
 st.subheader("📊 Price Distribution")
 
-if price_col:
-    fig, ax = plt.subplots()
-    sns.histplot(df[price_col], kde=True, ax=ax)
-    st.pyplot(fig)
-else:
-    st.error("Price column not found")
+fig2, ax = plt.subplots()
+sns.histplot(df[PRICE_COL], kde=True, ax=ax)
+st.pyplot(fig2)
 
-# -------------------------------
-# LOCATION GRAPH
-# -------------------------------
+# ---------------------------------------------------------
+# 📍 STEP 6: LOCATION COUNT
+# ---------------------------------------------------------
 st.subheader("📍 Properties by Location")
 
-if location_col:
-    loc_df = df[location_col].value_counts().reset_index()
-    loc_df.columns = ["Location", "Count"]
+loc_df = df[LOCATION_COL].value_counts().reset_index()
+loc_df.columns = ["Location", "Count"]
 
-    fig = px.bar(loc_df, x="Location", y="Count", title="Properties per Location")
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.error("Location column not found")
+fig3 = px.bar(
+    loc_df,
+    x="Location",
+    y="Count",
+    title="Properties per Location"
+)
+
+st.plotly_chart(fig3, use_container_width=True)
+
+# =========================================================
+# ✅ END OF FINAL SECTION
+# =========================================================
