@@ -17,68 +17,77 @@ from sklearn.linear_model import LinearRegression
 # ==============================
 # PAGE CONFIG
 # ==============================
-st.set_page_config(page_title="Employee Attrition Analysis", layout="wide")
+st.set_page_config(page_title="Real Estate Analysis", layout="wide")
 
-st.title("📊 Employee Attrition Analysis Dashboard")
-st.markdown("### 📌 Final Year Project | Data Analysis + ML Model")
+st.title("🏡 Real Estate Data Analysis Dashboard")
+st.markdown("### 📊 Final Year Project | Data Analysis + Machine Learning")
 
 # ==============================
-# LOAD FINAL DATA (AUTO LOAD)
+# LOAD DATA (EXCEL FILE)
 # ==============================
 @st.cache_data
 def load_data():
-    return pd.read_csv("final_data.csv")   # 👈 your final file name
+    df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
+    return df
 
 df = load_data()
 
 # ==============================
-# SHOW DATA
+# DATA PREVIEW
 # ==============================
-st.subheader("📄 Final Analyzed Dataset")
+st.subheader("📄 Dataset Preview")
 st.dataframe(df.head())
 
 # ==============================
-# KPI METRICS
+# BASIC CLEANING (SAFE)
 # ==============================
-st.subheader("📌 Key Insights")
+df = df.drop_duplicates()
+
+# ==============================
+# KPI SECTION
+# ==============================
+st.subheader("📌 Key Metrics")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("Total Employees", len(df))
+col1.metric("Total Properties", len(df))
 
-if 'Attrition' in df.columns:
-    attrition_rate = (df['Attrition'].value_counts(normalize=True).get('Yes', 0)) * 100
-    col2.metric("Attrition Rate", f"{attrition_rate:.2f}%")
-else:
-    col2.metric("Attrition Rate", "N/A")
+# Try common column names safely
+price_col = None
+for col in df.columns:
+    if "price" in col.lower():
+        price_col = col
+        break
 
-if 'MonthlyIncome' in df.columns:
-    col3.metric("Avg Salary", int(df['MonthlyIncome'].mean()))
+if price_col:
+    col2.metric("Average Price", f"{int(df[price_col].mean())}")
 else:
-    col3.metric("Avg Salary", "N/A")
+    col2.metric("Average Price", "N/A")
+
+col3.metric("Total Columns", len(df.columns))
 
 # ==============================
-# CHARTS
+# VISUALIZATION
 # ==============================
-st.subheader("📊 Visual Dashboard")
+st.subheader("📊 Visual Analysis")
 
 if plotly_available:
 
-    if 'Department' in df.columns:
-        fig1 = px.bar(df, x='Department', title="Employees by Department")
+    # Price Distribution
+    if price_col:
+        fig1 = px.histogram(df, x=price_col, title="Price Distribution")
         st.plotly_chart(fig1, use_container_width=True)
 
-    if 'Attrition' in df.columns:
-        fig2 = px.pie(df, names='Attrition', title="Attrition Distribution")
+    # First categorical column chart
+    cat_col = None
+    for col in df.columns:
+        if df[col].dtype == "object":
+            cat_col = col
+            break
+
+    if cat_col:
+        fig2 = px.bar(df, x=cat_col, title=f"{cat_col} Distribution")
         st.plotly_chart(fig2, use_container_width=True)
-
-    if 'Age' in df.columns:
-        fig3 = px.histogram(df, x='Age', title="Age Distribution")
-        st.plotly_chart(fig3, use_container_width=True)
-
-    if 'MonthlyIncome' in df.columns and 'Attrition' in df.columns:
-        fig4 = px.box(df, x='Attrition', y='MonthlyIncome', title="Salary vs Attrition")
-        st.plotly_chart(fig4, use_container_width=True)
 
 else:
     st.warning("Plotly not installed. Please check requirements.txt")
@@ -86,35 +95,37 @@ else:
 # ==============================
 # MACHINE LEARNING MODEL
 # ==============================
-st.subheader("🤖 Salary Prediction Model")
+st.subheader("🤖 Price Prediction")
 
-if 'Age' in df.columns and 'MonthlyIncome' in df.columns:
+# Try to find numeric columns for ML
+numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
 
-    X = df[['Age']]
-    y = df['MonthlyIncome']
+if len(numeric_cols) >= 2:
+    X = df[[numeric_cols[0]]]
+    y = df[numeric_cols[1]]
 
     model = LinearRegression()
     model.fit(X, y)
 
-    age = st.slider("Select Employee Age", 18, 60, 30)
+    val = st.slider(f"Select {numeric_cols[0]}", int(X.min()), int(X.max()))
 
-    prediction = model.predict([[age]])
+    prediction = model.predict([[val]])
 
-    st.success(f"Predicted Salary: ₹ {int(prediction[0])}")
+    st.success(f"Predicted {numeric_cols[1]}: {int(prediction[0])}")
 
 else:
-    st.warning("Required columns not found for prediction")
+    st.warning("Not enough numeric columns for prediction")
 
 # ==============================
-# DOWNLOAD BUTTON
+# DOWNLOAD DATA
 # ==============================
-st.subheader("📥 Download Final Dataset")
+st.subheader("📥 Download Data")
 
 csv = df.to_csv(index=False).encode('utf-8')
 
 st.download_button(
-    label="Download Dataset",
+    label="Download CSV",
     data=csv,
-    file_name="final_analyzed_data.csv",
+    file_name="processed_data.csv",
     mime="text/csv"
 )
