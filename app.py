@@ -1,94 +1,133 @@
+# ==============================
+# IMPORT LIBRARIES
+# ==============================
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.express as px
+from sklearn.linear_model import LinearRegression
 
-st.set_page_config(page_title="Real Estate Dashboard", layout="wide")
+# ==============================
+# PAGE CONFIG
+# ==============================
+st.set_page_config(page_title="Employee Attrition Analysis", layout="wide")
 
-st.title("🏠 Real Estate Dashboard")
+st.title("📊 Employee Attrition Analysis Dashboard")
 
-# =========================
+# ==============================
 # FILE UPLOAD
-# =========================
-file = st.file_uploader("Upload Excel File", type=["xlsx"])
+# ==============================
+uploaded_file = st.file_uploader("Upload your dataset (CSV file)", type=["csv"])
 
-if file is not None:
-    try:
-        df = pd.read_excel(file)
+if uploaded_file is not None:
 
-        st.success("✅ File Loaded")
+    # ==============================
+    # LOAD DATA
+    # ==============================
+    df = pd.read_csv(uploaded_file)
 
-        # Show data
-        st.write("### Preview")
-        st.dataframe(df.head())
+    st.subheader("Raw Dataset")
+    st.write(df.head())
 
-        # =========================
-        # BASIC INFO
-        # =========================
-        st.write("### Columns")
-        st.write(df.columns.tolist())
+    # ==============================
+    # DATA CLEANING
+    # ==============================
+    df.drop_duplicates(inplace=True)
 
-        # =========================
-        # SAFE COLUMN DETECTION
-        # =========================
-        income_col = None
-        price_col = None
-        cluster_col = None
-        buyer_col = None
-        age_col = None
+    # Fill missing values
+    for col in df.columns:
+        if df[col].dtype == "object":
+            df[col].fillna(df[col].mode()[0], inplace=True)
+        else:
+            df[col].fillna(df[col].median(), inplace=True)
 
-        for col in df.columns:
-            if "income" in col.lower():
-                income_col = col
-            if "price" in col.lower():
-                price_col = col
-            if "cluster" in col.lower():
-                cluster_col = col
-            if "buyer" in col.lower():
-                buyer_col = col
-            if "age" in col.lower():
-                age_col = col
+    # ==============================
+    # FEATURE ENGINEERING
+    # ==============================
+    if 'Age' in df.columns:
+        df['AgeGroup'] = pd.cut(
+            df['Age'],
+            bins=[18, 25, 35, 50, 60],
+            labels=['18-25', '26-35', '36-50', '50+'],
+            include_lowest=True
+        )
 
-        # =========================
-        # METRICS
-        # =========================
-        st.write("### 📊 Metrics")
-        col1, col2, col3 = st.columns(3)
+    if 'MonthlyIncome' in df.columns:
+        df['IncomeLevel'] = pd.qcut(
+            df['MonthlyIncome'],
+            q=4,
+            labels=['Low', 'Medium', 'High', 'Very High']
+        )
 
-        col1.metric("Total Rows", len(df))
+    # ==============================
+    # KPI METRICS
+    # ==============================
+    st.subheader("📌 Key Metrics")
 
-        if income_col:
-            col2.metric("Avg Income", round(df[income_col].mean(), 2))
+    col1, col2, col3 = st.columns(3)
 
-        if price_col:
-            col3.metric("Avg Price", round(df[price_col].mean(), 2))
+    if 'Attrition' in df.columns:
+        attrition_rate = (df['Attrition'].value_counts(normalize=True).get('Yes', 0)) * 100
+    else:
+        attrition_rate = 0
 
-        # =========================
-        # CHARTS
-        # =========================
-        st.write("### 📈 Charts")
+    col1.metric("Total Employees", len(df))
+    col2.metric("Attrition Rate", f"{attrition_rate:.2f}%")
+    col3.metric("Avg Salary", int(df['MonthlyIncome'].mean()) if 'MonthlyIncome' in df.columns else 0)
 
-        # Cluster Chart
-        if cluster_col:
-            fig = px.histogram(df, x=cluster_col, title="Cluster Distribution")
-            st.plotly_chart(fig)
+    # ==============================
+    # CHARTS (PLOTLY)
+    # ==============================
+    st.subheader("📊 Visual Analysis")
 
-        # Buyer Type
-        if buyer_col:
-            fig = px.pie(df, names=buyer_col, title="Buyer Type")
-            st.plotly_chart(fig)
+    if 'Department' in df.columns:
+        fig1 = px.bar(df, x='Department', title="Employees by Department")
+        st.plotly_chart(fig1, use_container_width=True)
 
-        # Scatter
-        if income_col and price_col:
-            fig = px.scatter(df, x=income_col, y=price_col, title="Income vs Price")
-            st.plotly_chart(fig)
+    if 'Attrition' in df.columns:
+        fig2 = px.pie(df, names='Attrition', title="Attrition Distribution")
+        st.plotly_chart(fig2, use_container_width=True)
 
-        # Box
-        if cluster_col and income_col:
-            fig = px.box(df, x=cluster_col, y=income_col, title="Income by Cluster")
-            st.plotly_chart(fig)
+    if 'AgeGroup' in df.columns:
+        fig3 = px.histogram(df, x='AgeGroup', title="Age Group Distribution")
+        st.plotly_chart(fig3, use_container_width=True)
 
-    except Exception as e:
-        st.error(f"Error: {e}")
+    if 'MonthlyIncome' in df.columns:
+        fig4 = px.box(df, x='Attrition', y='MonthlyIncome', title="Salary vs Attrition")
+        st.plotly_chart(fig4, use_container_width=True)
+
+    # ==============================
+    # PREDICTION MODEL
+    # ==============================
+    st.subheader("🤖 Salary Prediction Model")
+
+    if 'Age' in df.columns and 'MonthlyIncome' in df.columns:
+
+        X = df[['Age']]
+        y = df['MonthlyIncome']
+
+        model = LinearRegression()
+        model.fit(X, y)
+
+        age_input = st.slider("Select Age", 18, 60, 30)
+
+        prediction = model.predict([[age_input]])
+
+        st.success(f"Predicted Salary: ₹ {int(prediction[0])}")
+
+    # ==============================
+    # DOWNLOAD ANALYZED DATA
+    # ==============================
+    st.subheader("📥 Download Final Analyzed Dataset")
+
+    csv = df.to_csv(index=False).encode('utf-8')
+
+    st.download_button(
+        label="Download CSV",
+        data=csv,
+        file_name="final_analyzed_dataset.csv",
+        mime='text/csv',
+    )
 
 else:
-    st.info("Please upload your Excel file")
+    st.warning("Please upload a dataset to continue.")
