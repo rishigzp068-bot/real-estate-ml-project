@@ -1,6 +1,3 @@
-# ==============================
-# IMPORT LIBRARIES
-# ==============================
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -12,120 +9,70 @@ try:
 except:
     plotly_available = False
 
-from sklearn.linear_model import LinearRegression
+# Page config
+st.set_page_config(page_title="Real Estate Dashboard", layout="wide")
+st.title("🏡 Real Estate Analysis Dashboard")
 
 # ==============================
-# PAGE CONFIG
-# ==============================
-st.set_page_config(page_title="Real Estate Analysis", layout="wide")
-
-st.title("🏡 Real Estate Data Analysis Dashboard")
-st.markdown("### 📊 Final Year Project | Data Analysis + Machine Learning")
-
-# ==============================
-# LOAD DATA (EXCEL FILE)
+# LOAD DATA (SAFE)
 # ==============================
 @st.cache_data
 def load_data():
-    df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx")
-    return df
+    try:
+        df = pd.read_excel("Final_Analyzed_RealEstate_Data.xlsx", engine="openpyxl")
+        return df
+    except Exception as e:
+        st.error(f"Error loading file: {e}")
+        return None
 
 df = load_data()
+
+if df is None:
+    st.stop()
 
 # ==============================
 # DATA PREVIEW
 # ==============================
-st.subheader("📄 Dataset Preview")
-st.dataframe(df.head())
+st.subheader("Dataset Preview")
+st.write(df.head())
 
 # ==============================
-# BASIC CLEANING (SAFE)
+# CLEANING
 # ==============================
 df = df.drop_duplicates()
 
 # ==============================
-# KPI SECTION
+# KPI
 # ==============================
-st.subheader("📌 Key Metrics")
+st.subheader("Key Metrics")
 
-col1, col2, col3 = st.columns(3)
-
-col1.metric("Total Properties", len(df))
-
-# Try common column names safely
-price_col = None
-for col in df.columns:
-    if "price" in col.lower():
-        price_col = col
-        break
-
-if price_col:
-    col2.metric("Average Price", f"{int(df[price_col].mean())}")
-else:
-    col2.metric("Average Price", "N/A")
-
-col3.metric("Total Columns", len(df.columns))
+col1, col2 = st.columns(2)
+col1.metric("Total Rows", df.shape[0])
+col2.metric("Total Columns", df.shape[1])
 
 # ==============================
-# VISUALIZATION
+# VISUALIZATION (SAFE)
 # ==============================
-st.subheader("📊 Visual Analysis")
+st.subheader("Visuals")
 
 if plotly_available:
+    numeric_cols = df.select_dtypes(include=np.number).columns
 
-    # Price Distribution
-    if price_col:
-        fig1 = px.histogram(df, x=price_col, title="Price Distribution")
-        st.plotly_chart(fig1, use_container_width=True)
-
-    # First categorical column chart
-    cat_col = None
-    for col in df.columns:
-        if df[col].dtype == "object":
-            cat_col = col
-            break
-
-    if cat_col:
-        fig2 = px.bar(df, x=cat_col, title=f"{cat_col} Distribution")
-        st.plotly_chart(fig2, use_container_width=True)
+    if len(numeric_cols) > 0:
+        fig = px.histogram(df, x=numeric_cols[0], title="Numeric Distribution")
+        st.plotly_chart(fig, use_container_width=True)
 
 else:
-    st.warning("Plotly not installed. Please check requirements.txt")
+    st.warning("Plotly not installed")
 
 # ==============================
-# MACHINE LEARNING MODEL
+# DOWNLOAD
 # ==============================
-st.subheader("🤖 Price Prediction")
-
-# Try to find numeric columns for ML
-numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
-
-if len(numeric_cols) >= 2:
-    X = df[[numeric_cols[0]]]
-    y = df[numeric_cols[1]]
-
-    model = LinearRegression()
-    model.fit(X, y)
-
-    val = st.slider(f"Select {numeric_cols[0]}", int(X.min()), int(X.max()))
-
-    prediction = model.predict([[val]])
-
-    st.success(f"Predicted {numeric_cols[1]}: {int(prediction[0])}")
-
-else:
-    st.warning("Not enough numeric columns for prediction")
-
-# ==============================
-# DOWNLOAD DATA
-# ==============================
-st.subheader("📥 Download Data")
-
 csv = df.to_csv(index=False).encode('utf-8')
 
 st.download_button(
-    label="Download CSV",
+    label="Download Data",
     data=csv,
-    file_name="processed_data.csv",
+    file_name="data.csv",
     mime="text/csv"
 )
