@@ -104,3 +104,7 @@ if not numeric_df.empty:
 # SUCCESS
 # -------------------------------
 st.success("✅ App Running Successfully!")
+st.set_page_config(page_title="Real Estate ML Dashboard", layout="wide")
+
+st.title("🏠 Real Estate Price Prediction Dashboard")
+st.markdown("Machine Learning based analysis of real estate data")
